@@ -7,7 +7,7 @@ export interface List {
 }
 
 export interface GetListsParams {
-  // ...parameters for getting lists...
+  archived?: boolean;
 }
 
 export interface CreateListParams {

@@ -1,10 +1,12 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createClickUpClient } from '../clickup-client/index.js';
 import { createListsClient } from '../clickup-client/lists.js';
+import { createTasksClient } from '../clickup-client/tasks.js';
 
 // Create clients
 const clickUpClient = createClickUpClient();
 const listsClient = createListsClient(clickUpClient);
+const tasksClient = createTasksClient(clickUpClient);
 
 export function setupListResources(server: McpServer): void {
   // Register space lists resource
@@ -63,6 +65,68 @@ export function setupListResources(server: McpServer): void {
       } catch (error: any) {
         console.error('[ListResources] Error fetching list:', error);
         throw new Error(`Error fetching list: ${error.message}`);
+      }
+    }
+  );
+
+  // Register list tasks resource with filter support
+  server.resource(
+    'list-tasks',
+    new ResourceTemplate('clickup://list/{list_id}/tasks', { list: undefined }),
+    {
+      description: 'Get tasks from a ClickUp list with optional filtering by status, assignees, dates, and other criteria. Supports query parameters: statuses, assignees, due_date_gt, due_date_lt, date_created_gt, date_created_lt, date_updated_gt, date_updated_lt, include_closed, subtasks, page, order_by, reverse.'
+    },
+    async (uri, params) => {
+      try {
+        const list_id = params.list_id as string;
+        
+        // Parse query parameters from the URI for filtering
+        const url = new URL(uri.toString());
+        const filterParams: any = {};
+        
+        // Parse array parameters
+        if (url.searchParams.has('statuses')) {
+          filterParams.statuses = url.searchParams.get('statuses')?.split(',');
+        }
+        if (url.searchParams.has('assignees')) {
+          filterParams.assignees = url.searchParams.get('assignees')?.split(',').map(Number);
+        }
+        
+        // Parse number parameters
+        ['due_date_gt', 'due_date_lt', 'date_created_gt', 'date_created_lt', 'date_updated_gt', 'date_updated_lt', 'page'].forEach(param => {
+          if (url.searchParams.has(param)) {
+            filterParams[param] = Number(url.searchParams.get(param));
+          }
+        });
+        
+        // Parse boolean parameters
+        ['include_closed', 'subtasks', 'reverse'].forEach(param => {
+          if (url.searchParams.has(param)) {
+            filterParams[param] = url.searchParams.get(param) === 'true';
+          }
+        });
+        
+        // Parse string parameters
+        if (url.searchParams.has('order_by')) {
+          filterParams.order_by = url.searchParams.get('order_by');
+        }
+        
+        console.log('[ListResources] Fetching tasks for list:', list_id, 'with filters:', filterParams);
+        const result = await tasksClient.getTasksFromList(list_id, filterParams);
+        console.log('[ListResources] Got tasks:', result);
+        
+        return {
+          contents: [
+            {
+              uri: uri.toString(),
+              mimeType: 'application/json',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[ListResources] Error fetching list tasks:', error);
+        throw new Error(`Error fetching list tasks: ${error.message}`);
       }
     }
   );

@@ -104,11 +104,18 @@ export interface GetTasksParams {
   date_created_lt?: number;
   date_updated_gt?: number;
   date_updated_lt?: number;
+  date_closed_gt?: number;
+  date_closed_lt?: number;
   custom_fields?: Array<{
     field_id: string;
     operator: string;
     value: any;
   }>;
+  tags?: string[];
+  priority?: number[];
+  space_ids?: string[];
+  project_ids?: string[];
+  list_ids?: string[];
 }
 
 export class TasksClient {
@@ -126,6 +133,110 @@ export class TasksClient {
    */
   async getTasksFromList(listId: string, params?: GetTasksParams): Promise<{ tasks: Task[] }> {
     return this.client.get(`/list/${listId}/task`, params);
+  }
+
+  /**
+   * Get tasks from a team/workspace with filtering
+   * @param teamId The ID of the team to get tasks from
+   * @param params Optional parameters for filtering tasks
+   * @returns A list of tasks
+   */
+  async getTasksFromTeam(teamId: string, params?: GetTasksParams): Promise<{ tasks: Task[] }> {
+    return this.client.get(`/team/${teamId}/task`, params);
+  }
+
+  /**
+   * Get all tasks from a folder by aggregating tasks from all lists in the folder
+   * @param folderId The ID of the folder to get tasks from
+   * @param params Optional parameters for filtering tasks
+   * @returns A list of tasks from all lists in the folder
+   */
+  async getTasksFromFolder(folderId: string, params?: GetTasksParams): Promise<{ tasks: Task[] }> {
+    try {
+      // Get all lists from the folder
+      const listsResponse = await this.client.get(`/folder/${folderId}/list`);
+      const allTasks: Task[] = [];
+      
+      if (listsResponse.lists) {
+        for (const list of listsResponse.lists) {
+          // Skip this list if list_ids filter is specified and this list is not included
+          if (params?.list_ids && !params.list_ids.includes(list.id)) {
+            continue;
+          }
+          
+          try {
+            const listTasks = await this.getTasksFromList(list.id, params);
+            allTasks.push(...listTasks.tasks);
+          } catch (error) {
+            console.warn(`Failed to get tasks from list ${list.id} in folder ${folderId}:`, error);
+          }
+        }
+      }
+      
+      return { tasks: allTasks };
+    } catch (error) {
+      console.error(`Error getting tasks from folder ${folderId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all tasks from a space by aggregating tasks from all lists and folders
+   * @param spaceId The ID of the space to get tasks from
+   * @param params Optional parameters for filtering tasks
+   * @returns A list of tasks from all lists in the space
+   */
+  async getTasksFromSpace(spaceId: string, params?: GetTasksParams): Promise<{ tasks: Task[] }> {
+    try {
+      // Get all folders and folderless lists from the space
+      const foldersResponse = await this.client.get(`/space/${spaceId}/folder`);
+      const folderlessListsResponse = await this.client.get(`/space/${spaceId}/list`);
+      
+      const allTasks: Task[] = [];
+      
+      // Get tasks from folderless lists
+      if (folderlessListsResponse.lists) {
+        for (const list of folderlessListsResponse.lists) {
+          // Skip this list if list_ids filter is specified and this list is not included
+          if (params?.list_ids && !params.list_ids.includes(list.id)) {
+            continue;
+          }
+          
+          try {
+            const listTasks = await this.getTasksFromList(list.id, params);
+            allTasks.push(...listTasks.tasks);
+          } catch (error) {
+            console.warn(`Failed to get tasks from list ${list.id}:`, error);
+          }
+        }
+      }
+      
+      // Get tasks from folders (which contain lists)
+      if (foldersResponse.folders) {
+        for (const folder of foldersResponse.folders) {
+          if (folder.lists) {
+            for (const list of folder.lists) {
+              // Skip this list if list_ids filter is specified and this list is not included
+              if (params?.list_ids && !params.list_ids.includes(list.id)) {
+                continue;
+              }
+              
+              try {
+                const listTasks = await this.getTasksFromList(list.id, params);
+                allTasks.push(...listTasks.tasks);
+              } catch (error) {
+                console.warn(`Failed to get tasks from list ${list.id} in folder ${folder.id}:`, error);
+              }
+            }
+          }
+        }
+      }
+      
+      return { tasks: allTasks };
+    } catch (error) {
+      console.error(`Error getting tasks from space ${spaceId}:`, error);
+      throw error;
+    }
   }
 
   // Removed pseudo endpoints for getting tasks from spaces and folders
