@@ -138,7 +138,7 @@ get_tasks({
 ```javascript
 const today = new Date();
 today.setHours(0, 0, 0, 0);
-const startOfToday = today.getTime();
+const startOfToday = today.getTime(); // Milliseconds
 const endOfToday = new Date(today);
 endOfToday.setHours(23, 59, 59, 999);
 
@@ -146,7 +146,7 @@ get_tasks({
   team_id: "workspace_123", 
   assignees: [user.id],
   date_closed_gt: startOfToday,
-  date_closed_lt: endOfToday.getTime(),
+  date_closed_lt: endOfToday.getTime(), // Milliseconds
   include_closed: true
 })
 ```
@@ -206,9 +206,9 @@ const user = get_current_user();
 const tomorrow = new Date();
 tomorrow.setDate(tomorrow.getDate() + 1);
 tomorrow.setHours(0, 0, 0, 0);
-const tomorrowStart = tomorrow.getTime();
+const tomorrowStart = tomorrow.getTime(); // Milliseconds
 tomorrow.setHours(23, 59, 59, 999);
-const tomorrowEnd = tomorrow.getTime();
+const tomorrowEnd = tomorrow.getTime(); // Milliseconds
 
 // 3. Option A: Direct list query (fastest)
 get_tasks({
@@ -336,14 +336,14 @@ npm run lint
 | **Filters** | | |
 | `assignees` | `number[]` | Filter by user IDs |
 | `statuses` | `string[]` | Filter by status names |
-| `due_date_gt` | `number` | Due date after timestamp |
-| `due_date_lt` | `number` | Due date before timestamp |
-| `date_created_gt` | `number` | Created after timestamp |
-| `date_created_lt` | `number` | Created before timestamp |
-| `date_updated_gt` | `number` | Updated after timestamp |
-| `date_updated_lt` | `number` | Updated before timestamp |
-| `date_closed_gt` | `number` | Completed after timestamp |
-| `date_closed_lt` | `number` | Completed before timestamp |
+| `due_date_gt` | `number` | Due date after timestamp (Unix milliseconds) |
+| `due_date_lt` | `number` | Due date before timestamp (Unix milliseconds) |
+| `date_created_gt` | `number` | Created after timestamp (Unix milliseconds) |
+| `date_created_lt` | `number` | Created before timestamp (Unix milliseconds) |
+| `date_updated_gt` | `number` | Updated after timestamp (Unix milliseconds) |
+| `date_updated_lt` | `number` | Updated before timestamp (Unix milliseconds) |
+| `date_closed_gt` | `number` | Completed after timestamp (Unix milliseconds) |
+| `date_closed_lt` | `number` | Completed before timestamp (Unix milliseconds) |
 | `tags` | `string[]` | Filter by tags |
 | `priority` | `number[]` | Filter by priority (1-4) |
 | `space_ids` | `string[]` | Limit to specific spaces |

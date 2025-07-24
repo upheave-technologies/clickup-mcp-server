@@ -58,7 +58,7 @@ export function setupTaskTools(server: McpServer): void {
   // Task tools
   server.tool(
     'get_tasks',
-    'Get tasks from ClickUp with comprehensive filtering options. Can get tasks from a specific list, folder, space/project, or entire workspace/team.',
+    'Get tasks from ClickUp with comprehensive filtering options. Can get tasks from a specific list, folder, space/project, or entire workspace/team. NOTE: All date parameters expect Unix timestamps in MILLISECONDS (13 digits) - use Date.now() not Math.floor(Date.now()/1000).',
     {
       // Source options - specify exactly one
       list_id: z.string().optional().describe('Get tasks from specific list'),
@@ -74,14 +74,14 @@ export function setupTaskTools(server: McpServer): void {
       reverse: z.boolean().optional().describe('Whether to reverse the order'),
       statuses: z.array(z.string()).optional().describe('Filter by task statuses (array of status names)'),
       assignees: z.array(z.number()).optional().describe('Filter by assignee user IDs'),
-      due_date_gt: z.number().optional().describe('Due date greater than timestamp (Unix timestamp)'),
-      due_date_lt: z.number().optional().describe('Due date less than timestamp (Unix timestamp)'),
-      date_created_gt: z.number().optional().describe('Created date greater than timestamp (Unix timestamp)'),
-      date_created_lt: z.number().optional().describe('Created date less than timestamp (Unix timestamp)'),
-      date_updated_gt: z.number().optional().describe('Updated date greater than timestamp (Unix timestamp)'),
-      date_updated_lt: z.number().optional().describe('Updated date less than timestamp (Unix timestamp)'),
-      date_closed_gt: z.number().optional().describe('Closed date greater than timestamp (Unix timestamp)'),
-      date_closed_lt: z.number().optional().describe('Closed date less than timestamp (Unix timestamp)'),
+      due_date_gt: z.number().optional().describe('Due date greater than timestamp (Unix timestamp in MILLISECONDS - use Date.now())'),
+      due_date_lt: z.number().optional().describe('Due date less than timestamp (Unix timestamp in MILLISECONDS - use Date.now())'),
+      date_created_gt: z.number().optional().describe('Created date greater than timestamp (Unix timestamp in MILLISECONDS - use Date.now())'),
+      date_created_lt: z.number().optional().describe('Created date less than timestamp (Unix timestamp in MILLISECONDS - use Date.now())'),
+      date_updated_gt: z.number().optional().describe('Updated date greater than timestamp (Unix timestamp in MILLISECONDS - use Date.now())'),
+      date_updated_lt: z.number().optional().describe('Updated date less than timestamp (Unix timestamp in MILLISECONDS - use Date.now())'),
+      date_closed_gt: z.number().optional().describe('Closed date greater than timestamp (Unix timestamp in MILLISECONDS - use Date.now())'),
+      date_closed_lt: z.number().optional().describe('Closed date less than timestamp (Unix timestamp in MILLISECONDS - use Date.now())'),
       tags: z.array(z.string()).optional().describe('Filter by task tags'),
       priority: z.array(z.number()).optional().describe('Filter by task priority (1-4)'),
       space_ids: z.array(z.string()).optional().describe('Filter by specific space IDs (only for team_id queries)'),
@@ -158,7 +158,7 @@ export function setupTaskTools(server: McpServer): void {
 
   server.tool(
     'create_task',
-    'Create a new task in a ClickUp list with specified properties like name, description, assignees, status, and dates.',
+    'Create a new task in a ClickUp list with specified properties like name, description, assignees, status, and dates. NOTE: Date parameters expect Unix timestamps in MILLISECONDS (13 digits) - use Date.now().',
     {
       list_id: z.string().describe('The ID of the list to create the task in'),
       name: z.string().describe('The name of the task'),
@@ -167,10 +167,10 @@ export function setupTaskTools(server: McpServer): void {
       tags: z.array(z.string()).optional().describe('The tags to add to the task'),
       status: z.string().optional().describe('The status of the task'),
       priority: z.number().optional().describe('The priority of the task (1-4)'),
-      due_date: z.number().optional().describe('The due date of the task (Unix timestamp)'),
+      due_date: z.number().optional().describe('The due date of the task (Unix timestamp in MILLISECONDS - use Date.now())'),
       due_date_time: z.boolean().optional().describe('Whether the due date includes a time'),
       time_estimate: z.number().optional().describe('The time estimate for the task (in milliseconds)'),
-      start_date: z.number().optional().describe('The start date of the task (Unix timestamp)'),
+      start_date: z.number().optional().describe('The start date of the task (Unix timestamp in MILLISECONDS - use Date.now())'),
       start_date_time: z.boolean().optional().describe('Whether the start date includes a time'),
       notify_all: z.boolean().optional().describe('Whether to notify all assignees'),
       parent: z.string().optional().describe('The ID of the parent task')
@@ -193,7 +193,7 @@ export function setupTaskTools(server: McpServer): void {
 
   server.tool(
     'update_task',
-    'Update an existing ClickUp task\'s properties including name, description, assignees, status, and dates.',
+    'Update an existing ClickUp task\'s properties including name, description, assignees, status, and dates. NOTE: Date parameters expect Unix timestamps in MILLISECONDS (13 digits) - use Date.now().',
     {
       task_id: z.string().describe('The ID of the task to update'),
       name: z.string().optional().describe('The new name of the task'),
@@ -201,10 +201,10 @@ export function setupTaskTools(server: McpServer): void {
       assignees: z.array(z.number()).optional().describe('The IDs of the users to assign to the task'),
       status: z.string().optional().describe('The new status of the task'),
       priority: z.number().optional().describe('The new priority of the task (1-4)'),
-      due_date: z.number().optional().describe('The new due date of the task (Unix timestamp)'),
+      due_date: z.number().optional().describe('The new due date of the task (Unix timestamp in MILLISECONDS - use Date.now())'),
       due_date_time: z.boolean().optional().describe('Whether the due date includes a time'),
       time_estimate: z.number().optional().describe('The new time estimate for the task (in milliseconds)'),
-      start_date: z.number().optional().describe('The new start date of the task (Unix timestamp)'),
+      start_date: z.number().optional().describe('The new start date of the task (Unix timestamp in MILLISECONDS - use Date.now())'),
       start_date_time: z.boolean().optional().describe('Whether the start date includes a time'),
       notify_all: z.boolean().optional().describe('Whether to notify all assignees')
     },
