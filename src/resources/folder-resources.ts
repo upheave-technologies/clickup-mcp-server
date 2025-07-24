@@ -56,7 +56,7 @@ export function setupFolderResources(server: McpServer): void {
         // Create a folder object with the ID and a message
         const folder = {
           id: folder_id,
-          message: "Folder details endpoint not available in ClickUp API"
+          message: 'Folder details endpoint not available in ClickUp API'
         };
         
         return {
@@ -149,7 +149,7 @@ export function setupFolderResources(server: McpServer): void {
         // Create a folder object with the ID and a message
         const folder = {
           id: folder_id,
-          message: "Folder details endpoint not available in ClickUp API"
+          message: 'Folder details endpoint not available in ClickUp API'
         };
         
         return {

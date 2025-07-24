@@ -16,19 +16,19 @@ const authClient = createAuthClient(clickUpClient);
 export function setupTaskTools(server: McpServer): void {
   // Workspace and Auth tools
   server.tool(
-    'get_workspace_seats',
-    'Get information about seats (user licenses) in a ClickUp workspace. Returns details about seat allocation and availability.',
-    { workspace_id: z.string().describe('The ID of the workspace to get seats information for') },
-    async ({ workspace_id }) => {
+    'get_current_user',
+    'Get current authenticated user information including user ID needed for assignee filtering.',
+    {},
+    async () => {
       try {
-        const result = await authClient.getWorkspaceSeats(workspace_id);
+        const result = await authClient.getAuthorizedUser();
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
         };
       } catch (error: any) {
-        console.error('Error getting workspace seats:', error);
+        console.error('Error getting current user:', error);
         return {
-          content: [{ type: 'text', text: `Error getting workspace seats: ${error.message}` }],
+          content: [{ type: 'text', text: `Error getting current user: ${error.message}` }],
           isError: true
         };
       }
@@ -58,18 +58,68 @@ export function setupTaskTools(server: McpServer): void {
   // Task tools
   server.tool(
     'get_tasks',
-    'Get tasks from a ClickUp list. Returns task details including name, description, assignees, and status.',
+    'Get tasks from ClickUp with comprehensive filtering options. Can get tasks from a specific list, folder, space/project, or entire workspace/team.',
     {
-      list_id: z.string().describe('The ID of the list to get tasks from'),
+      // Source options - specify exactly one
+      list_id: z.string().optional().describe('Get tasks from specific list'),
+      folder_id: z.string().optional().describe('Get tasks from entire folder (aggregated from all lists in folder)'),
+      space_id: z.string().optional().describe('Get tasks from entire space/project (aggregated from all lists)'),
+      team_id: z.string().optional().describe('Get tasks from entire team/workspace'),
+      
+      // Filters  
       include_closed: z.boolean().optional().describe('Whether to include closed tasks'),
       subtasks: z.boolean().optional().describe('Whether to include subtasks in the results'),
       page: z.number().optional().describe('The page number to get'),
       order_by: z.string().optional().describe('The field to order by'),
-      reverse: z.boolean().optional().describe('Whether to reverse the order')
+      reverse: z.boolean().optional().describe('Whether to reverse the order'),
+      statuses: z.array(z.string()).optional().describe('Filter by task statuses (array of status names)'),
+      assignees: z.array(z.number()).optional().describe('Filter by assignee user IDs'),
+      due_date_gt: z.number().optional().describe('Due date greater than timestamp (Unix timestamp)'),
+      due_date_lt: z.number().optional().describe('Due date less than timestamp (Unix timestamp)'),
+      date_created_gt: z.number().optional().describe('Created date greater than timestamp (Unix timestamp)'),
+      date_created_lt: z.number().optional().describe('Created date less than timestamp (Unix timestamp)'),
+      date_updated_gt: z.number().optional().describe('Updated date greater than timestamp (Unix timestamp)'),
+      date_updated_lt: z.number().optional().describe('Updated date less than timestamp (Unix timestamp)'),
+      date_closed_gt: z.number().optional().describe('Closed date greater than timestamp (Unix timestamp)'),
+      date_closed_lt: z.number().optional().describe('Closed date less than timestamp (Unix timestamp)'),
+      tags: z.array(z.string()).optional().describe('Filter by task tags'),
+      priority: z.array(z.number()).optional().describe('Filter by task priority (1-4)'),
+      space_ids: z.array(z.string()).optional().describe('Filter by specific space IDs (only for team_id queries)'),
+      list_ids: z.array(z.string()).optional().describe('Filter by specific list IDs (only for folder_id/space_id/team_id queries - limits results to these lists only)'),
+      custom_fields: z.array(z.object({
+        field_id: z.string().describe('The ID of the custom field'),
+        operator: z.string().describe('The operator to use (=, !=, <, >, etc.)'),
+        value: z.union([z.string(), z.number(), z.boolean()]).describe('The value to compare against')
+      })).optional().describe('Custom field filters with field_id, operator, and value')
     },
-    async ({ list_id, ...params }) => {
+    async ({ list_id, folder_id, space_id, team_id, ...params }) => {
       try {
-        const result = await tasksClient.getTasksFromList(list_id, params);
+        // Validate that exactly one source is specified
+        const sources = [list_id, folder_id, space_id, team_id].filter(Boolean);
+        if (sources.length === 0) {
+          throw new Error('Must specify exactly one of: list_id, folder_id, space_id, or team_id');
+        }
+        if (sources.length > 1) {
+          throw new Error('Can only specify one of: list_id, folder_id, space_id, or team_id');
+        }
+
+        const filterParams = { ...params };
+        let result;
+
+        if (list_id) {
+          // Get tasks from specific list
+          result = await tasksClient.getTasksFromList(list_id, filterParams);
+        } else if (folder_id) {
+          // Get tasks from entire folder
+          result = await tasksClient.getTasksFromFolder(folder_id, filterParams);
+        } else if (space_id) {
+          // Get tasks from entire space
+          result = await tasksClient.getTasksFromSpace(space_id, filterParams);
+        } else if (team_id) {
+          // Get tasks from entire team/workspace
+          result = await tasksClient.getTasksFromTeam(team_id, filterParams);
+        }
+
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
         };
@@ -177,18 +227,20 @@ export function setupTaskTools(server: McpServer): void {
   // List and Folder tools
   server.tool(
     'get_lists',
-    'Get lists from a ClickUp folder or space. Returns list details including name and content.',
+    'Get lists from a ClickUp folder or space with filtering options. Returns list details including name and content.',
     {
       container_type: z.enum(['folder', 'space']).describe('The type of container to get lists from'),
-      container_id: z.string().describe('The ID of the container to get lists from')
+      container_id: z.string().describe('The ID of the container to get lists from'),
+      archived: z.boolean().optional().describe('Filter archived lists (true for archived, false for active, undefined for all)')
     },
-    async ({ container_type, container_id }) => {
+    async ({ container_type, container_id, archived }) => {
       try {
         let result;
+        const params = archived !== undefined ? { archived } : {};
         if (container_type === 'folder') {
-          result = await foldersClient.getListsFromFolder(container_id);
+          result = await foldersClient.getListsFromFolder(container_id, params);
         } else if (container_type === 'space') {
-          result = await listsClient.getListsFromSpace(container_id);
+          result = await listsClient.getListsFromSpace(container_id, params);
         } else {
           throw new Error('Invalid container_type. Must be one of: folder, space');
         }
@@ -200,6 +252,30 @@ export function setupTaskTools(server: McpServer): void {
         console.error(`Error getting lists from ${container_type}:`, error);
         return {
           content: [{ type: 'text', text: `Error getting lists: ${error.message}` }],
+          isError: true
+        };
+      }
+    }
+  );
+
+  server.tool(
+    'get_folders',
+    'Get folders from a ClickUp space with filtering options. Returns folder details including name and content.',
+    {
+      space_id: z.string().describe('The ID of the space to get folders from'),
+      archived: z.boolean().optional().describe('Filter archived folders (true for archived, false for active, undefined for all)')
+    },
+    async ({ space_id, archived }) => {
+      try {
+        const params = archived !== undefined ? { archived } : {};
+        const result = await foldersClient.getFoldersFromSpace(space_id, params);
+        return {
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+        };
+      } catch (error: any) {
+        console.error('Error getting folders:', error);
+        return {
+          content: [{ type: 'text', text: `Error getting folders: ${error.message}` }],
           isError: true
         };
       }

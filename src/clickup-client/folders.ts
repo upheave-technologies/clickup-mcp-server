@@ -7,7 +7,7 @@ export interface Folder {
 }
 
 export interface GetFoldersParams {
-  // ...parameters for getting folders...
+  archived?: boolean;
 }
 
 export interface List {
@@ -17,7 +17,7 @@ export interface List {
 }
 
 export interface GetListsParams {
-  // ...parameters for getting lists...
+  archived?: boolean;
 }
 
 export class FoldersClient {
